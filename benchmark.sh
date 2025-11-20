@@ -21,7 +21,6 @@ JOHN_HASH_FILE="$TEMP_DIR/john_hashes.txt"
 
 # Создаем временную директорию
 mkdir -p "$TEMP_DIR"
-chmod 755 "$TEMP_DIR"
 
 # Массив для хранения результатов
 declare -A results_ph_time
@@ -60,7 +59,7 @@ install_john() {
                 echo -e "${YELLOW}Попытка установки john (стандартная версия)...${NC}"
                 brew install john
             }
-        fi
+        }
     else
         echo -e "${GREEN}✓ John the Ripper установлен${NC}"
     fi
@@ -112,13 +111,11 @@ run_passwordhack() {
     local output=$(java -jar "$JAR_FILE" -hash="$hash" -length="$max_length" -minLength="$min_length" $gpu_flag 2>&1)
     local end_time=$(date +%s.%N)
     
-    # Парсим время выполнения из вывода (совместимо с macOS grep)
-    # Формат: "⏱️  Execution time: 1.23 seconds"
-    local time_match=$(echo "$output" | sed -n 's/.*Execution time: \([0-9.]*\).*/\1/p' | head -n1 || echo "")
+    # Парсим время выполнения из вывода
+    local time_match=$(echo "$output" | grep -oP 'Execution time: \K[0-9.]+' || echo "")
     
-    # Извлекаем найденный пароль (совместимо с macOS grep)
-    # Формат: "✅ Password found: password123"
-    local password=$(echo "$output" | sed -n 's/.*Password found: \([^ ]*\).*/\1/p' | head -n1 || echo "")
+    # Извлекаем найденный пароль
+    local password=$(echo "$output" | grep -oP 'Password found: \K[^\s]+' || echo "")
     
     # Вычисляем время если не нашли в выводе
     local elapsed_time=0
@@ -140,8 +137,6 @@ run_john() {
     
     # Очищаем предыдущие хеши
     rm -f "$JOHN_HASH_FILE"
-    touch "$JOHN_HASH_FILE"
-    chmod 644 "$JOHN_HASH_FILE"
     echo "$hash" > "$JOHN_HASH_FILE"
     
     local start_time=$(date +%s.%N)
@@ -176,8 +171,6 @@ run_john() {
     
     local password=""
     local john_output_file="$TEMP_DIR/john_output_$$.txt"
-    touch "$john_output_file"
-    chmod 644 "$john_output_file"
     
     # Запускаем John
     timeout $timeout_seconds john --format="$john_format" --incremental=ASCII --min-length=$min_length --max-length=$max_length "$JOHN_HASH_FILE" > "$john_output_file" 2>&1 || true
@@ -373,12 +366,7 @@ main() {
     if ! command -v timeout &> /dev/null; then
         echo -e "${YELLOW}Установка coreutils для команды timeout...${NC}"
         brew install coreutils
-        # Проверяем оба возможных пути для M1 и Intel Mac
-        if [ -d "/opt/homebrew/opt/coreutils/libexec/gnubin" ]; then
-            export PATH="/opt/homebrew/opt/coreutils/libexec/gnubin:$PATH"
-        elif [ -d "/usr/local/opt/coreutils/libexec/gnubin" ]; then
-            export PATH="/usr/local/opt/coreutils/libexec/gnubin:$PATH"
-        fi
+        export PATH="/usr/local/opt/coreutils/libexec/gnubin:$PATH"
     fi
     
     # Массив с хешами для тестирования
