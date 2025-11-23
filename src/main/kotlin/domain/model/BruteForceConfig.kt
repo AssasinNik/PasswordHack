@@ -1,4 +1,6 @@
-package ru.cherenkov.domain.model
+package domain.model
+
+import domain.entity.HashAlgorithm
 
 data class BruteForceConfig(
     val hash: String,

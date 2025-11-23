@@ -1,4 +1,4 @@
-package ru.cherenkov.domain.model
+package domain.model
 
 sealed class BruteForceResult {
     data class Found(val password: String) : BruteForceResult()

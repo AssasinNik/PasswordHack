@@ -1,7 +1,7 @@
-package ru.cherenkov.presentation.cli
+package presentation.cli
 
 object ArgumentParser {
-    fun parseArguments(args: Array<String>): Map<String, String> {
+    fun parse(args: Array<String>): Map<String, String> {
         val result = mutableMapOf<String, String>()
         
         var i = 0

@@ -1,7 +1,7 @@
-package ru.cherenkov.presentation.cli
+package presentation.cli
 
 object HelpPrinter {
-    fun printHelp() {
+    fun print() {
         val dollar = '$'
         println("""
         PasswordHack - Быстрый подбор паролей

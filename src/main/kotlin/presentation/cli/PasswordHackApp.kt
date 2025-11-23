@@ -27,7 +27,7 @@ class PasswordHackApp {
             return@runBlocking
         }
 
-        if (hash.isEmpty()) {
+        if (hash.isBlank()) {
             println("Ошибка: пустой хэш")
             return@runBlocking
         }

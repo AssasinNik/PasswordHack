@@ -1,7 +1,7 @@
-package ru.cherenkov.data.checker
+package data.checker
 
-import ru.cherenkov.domain.repository.HashChecker
-import ru.cherenkov.util.HashUtils
+import domain.repository.HashChecker
+import data.util.HexConverter
 import java.security.MessageDigest
 
 class MD5HashChecker(private val targetHash: ByteArray) : HashChecker {
@@ -21,7 +21,7 @@ class MD5HashChecker(private val targetHash: ByteArray) : HashChecker {
     
     companion object {
         fun create(hash: String): MD5HashChecker {
-            return MD5HashChecker(HashUtils.hexToByteArray(hash))
+            return MD5HashChecker(HexConverter.hexToByteArray(hash))
         }
     }
 }

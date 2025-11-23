@@ -16,5 +16,19 @@ object HexConverter {
         }
         return bytes
     }
+    
+    fun normalizeHash(hash: String): String {
+        // Нормализуем хэш: восстанавливаем $ если они были повреждены PowerShell
+        var normalized = hash.replace("\\\\", "\\").replace("\\$", "$")
+        // Если хэш bcrypt начинается без $, добавляем его
+        if (normalized.matches(Regex("^2[aby]\\$[0-9]{2}\\$[./A-Za-z0-9]{53}$"))) {
+            normalized = "\$" + normalized
+        }
+        // Если хэш argon2 начинается без $, добавляем его
+        if (normalized.startsWith("argon2") && !normalized.startsWith("\$argon2")) {
+            normalized = "\$" + normalized
+        }
+        return normalized
+    }
 }
 

@@ -1,8 +1,8 @@
-package ru.cherenkov.data.checker
+package data.checker
 
 import org.mindrot.jbcrypt.BCrypt
-import ru.cherenkov.domain.repository.HashChecker
-import ru.cherenkov.util.HashUtils
+import domain.repository.HashChecker
+import data.util.HexConverter
 
 class BcryptHashChecker(private val hash: String) : HashChecker {
     override fun check(candidate: String): Boolean {
@@ -11,7 +11,7 @@ class BcryptHashChecker(private val hash: String) : HashChecker {
     
     companion object {
         fun create(hash: String): BcryptHashChecker {
-            return BcryptHashChecker(HashUtils.normalizeHash(hash))
+            return BcryptHashChecker(HexConverter.normalizeHash(hash))
         }
     }
 }

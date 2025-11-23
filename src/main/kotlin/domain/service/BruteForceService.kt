@@ -1,16 +1,16 @@
-package ru.cherenkov.domain.service
+package domain.service
 
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
-import ru.cherenkov.data.accelerator.GPUAccelerator
-import ru.cherenkov.data.checker.AsyncHashChecker
-import ru.cherenkov.data.checker.BcryptHashChecker
-import ru.cherenkov.data.checker.Argon2HashChecker
-import ru.cherenkov.data.checker.MD5HashChecker
-import ru.cherenkov.data.checker.SHA1HashChecker
-import ru.cherenkov.data.generator.PasswordGenerator
-import ru.cherenkov.domain.model.BruteForceResult
-import ru.cherenkov.domain.repository.HashChecker
+import data.gpu.GPUAccelerator
+import data.checker.AsyncHashChecker
+import data.checker.BcryptHashChecker
+import data.checker.Argon2HashChecker
+import data.checker.MD5HashChecker
+import data.checker.SHA1HashChecker
+import data.generator.PasswordGenerator
+import domain.model.BruteForceResult
+import domain.repository.HashChecker
 import java.math.BigInteger
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference

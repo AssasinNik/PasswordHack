@@ -1,4 +1,4 @@
-package ru.cherenkov.domain.repository
+package domain.repository
 
 interface HashChecker {
     fun check(candidate: String): Boolean
