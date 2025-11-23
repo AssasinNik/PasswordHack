@@ -1,7 +1,8 @@
-package data.checker
+package ru.cherenkov.data.checker
 
-import domain.entity.HashAlgorithm
-import domain.repository.HashChecker
+import ru.cherenkov.domain.model.HashAlgorithm
+import ru.cherenkov.domain.repository.HashChecker
+import ru.cherenkov.util.HashUtils
 
 object HashCheckerFactory {
     fun create(algorithm: HashAlgorithm, hash: String): HashChecker {

@@ -1,28 +1,28 @@
-package presentation.cli
+package ru.cherenkov.presentation.cli
 
 import kotlinx.coroutines.*
-import data.gpu.GPUAccelerator
-import data.checker.HashCheckerFactory
-import domain.entity.HashAlgorithm
-import domain.service.AlphabetService
-import domain.service.BruteForceService
-import domain.service.HashDetectionService
+import ru.cherenkov.data.accelerator.GPUAccelerator
+import ru.cherenkov.data.checker.HashCheckerFactory
+import ru.cherenkov.domain.model.HashAlgorithm
+import ru.cherenkov.domain.service.AlphabetService
+import ru.cherenkov.domain.service.BruteForceService
+import ru.cherenkov.domain.service.HashDetectionService
 
 fun main(args: Array<String>) = runBlocking {
-    val parsedArgs = ArgumentParser.parse(args)
+    val parsedArgs = ArgumentParser.parseArguments(args)
     
     if (parsedArgs.containsKey("help") || args.isEmpty()) {
-        HelpPrinter.print()
+        HelpPrinter.printHelp()
         return@runBlocking
     }
 
     val hash = parsedArgs["hash"] ?: run {
         println("Ошибка: необходимо указать хэш через -hash=\"<hash>\"")
-        HelpPrinter.print()
+        HelpPrinter.printHelp()
         return@runBlocking
     }
 
-    if (hash.isBlank()) {
+    if (hash.isEmpty()) {
         println("Ошибка: пустой хэш")
         return@runBlocking
     }

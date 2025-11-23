@@ -1,9 +1,9 @@
-package data.checker
+package ru.cherenkov.data.checker
 
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
-import domain.repository.HashChecker
+import ru.cherenkov.domain.repository.HashChecker
 
 /**
  * Обертка для асинхронной проверки медленных алгоритмов (bcrypt, Argon2)

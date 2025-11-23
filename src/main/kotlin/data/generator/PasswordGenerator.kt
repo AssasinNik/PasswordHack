@@ -1,4 +1,4 @@
-package data.generator
+package ru.cherenkov.data.generator
 
 import java.math.BigInteger
 

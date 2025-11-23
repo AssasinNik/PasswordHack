@@ -1,6 +1,6 @@
-package domain.service
+package ru.cherenkov.domain.service
 
-import domain.entity.HashAlgorithm
+import ru.cherenkov.domain.model.HashAlgorithm
 
 class AlphabetService {
     fun getAlphabetForAlgorithm(algorithm: HashAlgorithm, complexity: String = "medium"): String {

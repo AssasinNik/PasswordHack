@@ -1,11 +1,11 @@
-package domain.service
+package ru.cherenkov.domain.service
 
-import domain.entity.HashAlgorithm
-import data.util.HexConverter
+import ru.cherenkov.domain.model.HashAlgorithm
+import ru.cherenkov.util.HashUtils
 
 class HashDetectionService {
     fun detectAlgorithm(hash: String): HashAlgorithm {
-        val normalizedHash = HexConverter.normalizeHash(hash)
+        val normalizedHash = HashUtils.normalizeHash(hash)
         
         return when {
             // Проверяем bcrypt: должен начинаться с $2a$, $2b$, $2y$
