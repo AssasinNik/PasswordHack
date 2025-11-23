@@ -49,14 +49,16 @@ object CoroutineOptimizer {
                 (cpuCores * 12).coerceAtMost(256).coerceAtLeast(16)
             }
             algorithm == HashAlgorithm.BCRYPT -> {
-                // Для bcrypt используем меньше корутин, так как каждая проверка медленная
-                // Формула: ядра * 2-3
-                (cpuCores * 3).coerceAtMost(64).coerceAtLeast(8)
+                // Для bcrypt используем оптимальное количество корутин
+                // Оптимизация: увеличиваем количество для лучшей утилизации CPU с батчингом
+                // Формула: ядра * 3-4 (увеличено для лучшей параллелизации батчей)
+                (cpuCores * 4).coerceAtMost(64).coerceAtLeast(8)
             }
             algorithm == HashAlgorithm.ARGON2 -> {
-                // Для Argon2 используем еще меньше, так как он самый медленный
-                // Формула: ядра * 2-2.5
-                (cpuCores * 2).coerceAtMost(32).coerceAtLeast(4)
+                // Для Argon2 используем оптимальное количество корутин
+                // Оптимизация: увеличиваем количество для лучшей утилизации CPU с батчингом
+                // Формула: ядра * 2.5-3 (увеличено для лучшей параллелизации батчей)
+                (cpuCores * 3).coerceAtMost(48).coerceAtLeast(6)
             }
             else -> {
                 // По умолчанию

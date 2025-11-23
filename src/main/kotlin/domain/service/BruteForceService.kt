@@ -55,9 +55,23 @@ class BruteForceService {
         // Для медленных алгоритмов создаем асинхронный checker с батчингом
         val asyncChecker = if (isBcryptOrArgon2) {
             // Для bcrypt/Argon2 используем батчинг: собираем несколько кандидатов и проверяем параллельно
-            // Увеличиваем параллелизм для медленных алгоритмов, чтобы использовать все ядра CPU
-            val parallelismForSlow = (threadCount * 1.5).toInt().coerceAtLeast(4)
-            AsyncHashChecker(checker, batchSize = 20, parallelism = parallelismForSlow)
+            // Оптимизация: увеличиваем параллелизм для лучшей утилизации CPU
+            // Используем больше параллелизма, чем количество корутин, так как каждая корутина может обрабатывать батчи
+            val cpuCores = Runtime.getRuntime().availableProcessors()
+            val parallelismForSlow = if (checker is BcryptHashChecker) {
+                // Для bcrypt используем больше параллелизма (он немного быстрее Argon2)
+                (cpuCores * 2).coerceAtMost(32).coerceAtLeast(8)
+            } else {
+                // Для Argon2 используем меньше параллелизма (он самый медленный)
+                (cpuCores * 1.5).toInt().coerceAtMost(24).coerceAtLeast(6)
+            }
+            // Увеличиваем размер батча для лучшей утилизации CPU
+            val optimalBatchSize = if (checker is BcryptHashChecker) {
+                30 // Для bcrypt можно использовать больший батч
+            } else {
+                20 // Для Argon2 используем меньший батч
+            }
+            AsyncHashChecker(checker, batchSize = optimalBatchSize, parallelism = parallelismForSlow)
         } else {
             null
         }
@@ -138,11 +152,22 @@ class BruteForceService {
             val useLong = total <= BigInteger.valueOf(Long.MAX_VALUE)
             val totalLong = if (useLong) total.toLong() else Long.MAX_VALUE
             
-            // Увеличиваем размер чанка для лучшего распределения работы
+            // Оптимизированный размер чанка для лучшего распределения работы
+            // Для медленных алгоритмов используем меньшие чанки для лучшего баланса нагрузки
             val chunkSize = if (useLong) {
-                (totalLong / threadCount + 1).coerceAtLeast(50000L)
+                if (isBcryptOrArgon2) {
+                    // Для медленных алгоритмов используем меньшие чанки для лучшего баланса
+                    (totalLong / threadCount + 1).coerceAtLeast(10000L).coerceAtMost(100000L)
+                } else {
+                    (totalLong / threadCount + 1).coerceAtLeast(50000L)
+                }
             } else {
-                total.divide(BigInteger.valueOf(threadCount.toLong())).toLong().coerceAtLeast(50000L)
+                if (isBcryptOrArgon2) {
+                    val chunkSizeBig = total.divide(BigInteger.valueOf(threadCount.toLong()))
+                    chunkSizeBig.min(BigInteger.valueOf(100000L)).toLong().coerceAtLeast(10000L)
+                } else {
+                    total.divide(BigInteger.valueOf(threadCount.toLong())).toLong().coerceAtLeast(50000L)
+                }
             }
 
             val jobs = if (useLong) {
@@ -187,13 +212,15 @@ class BruteForceService {
                             } else {
                                 // Для медленных алгоритмов используем батчинг
                                 if (isBcryptOrArgon2 && asyncChecker != null) {
-                                    val batch = mutableListOf<String>()
-                                    // Динамический размер батча в зависимости от алгоритма
+                                    // Оптимизированный размер батча в зависимости от алгоритма
+                                    // Увеличиваем размер батча для лучшей утилизации CPU
                                     val batchSizeForSlow = if (checker is BcryptHashChecker) {
-                                        15 // Для bcrypt используем меньший батч
+                                        30 // Для bcrypt используем больший батч
                                     } else {
-                                        10 // Для Argon2 еще меньше
+                                        25 // Для Argon2 используем средний батч
                                     }
+                                    // Предварительное выделение памяти для батча (оптимизация)
+                                    val batch = ArrayList<String>(batchSizeForSlow)
                                     
                                     while (count < (end - start)) {
                                         val candidate = generator.toString()
@@ -207,19 +234,21 @@ class BruteForceService {
                                         if (batch.size >= batchSizeForSlow || localCounter >= localCounterResetInterval) {
                                             if (shouldStop.get()) break
                                             
-                                            // Параллельная проверка батча
+                                            // Параллельная проверка батча с оптимизацией
                                             val results = asyncChecker.checkBatchWithLimit(batch)
                                             
-                                            // Проверяем результаты
+                                            // Проверяем результаты (оптимизация: прерываем при первом совпадении)
+                                            var found = false
                                             for ((cand, isMatch) in results) {
                                                 if (isMatch) {
                                                     resultChannel.send(BruteForceResult.Found(cand))
                                                     shouldStop.set(true)
+                                                    found = true
                                                     break
                                                 }
                                             }
                                             
-                                            if (shouldStop.get()) break
+                                            if (found || shouldStop.get()) break
                                             
                                             // Отправляем статистику прогресса
                                             progressChannel.trySend(BruteForceResult.Progress(batch.size.toLong(), end - start))
@@ -318,14 +347,15 @@ class BruteForceService {
                             } else {
                                 // Для медленных алгоритмов используем батчинг
                                 if (isBcryptOrArgon2 && asyncChecker != null) {
-                                    val batch = mutableListOf<String>()
-                                    // Динамический размер батча в зависимости от алгоритма
+                                    // Оптимизированный размер батча в зависимости от алгоритма
                                     val batchSizeForSlow = if (checker is BcryptHashChecker) {
-                                        15 // Для bcrypt используем меньший батч
+                                        30 // Для bcrypt используем больший батч
                                     } else {
-                                        10 // Для Argon2 еще меньше
+                                        25 // Для Argon2 используем средний батч
                                     }
                                     val batchSizeBig = BigInteger.valueOf(batchSizeForSlow.toLong())
+                                    // Предварительное выделение памяти для батча (оптимизация)
+                                    val batch = ArrayList<String>(batchSizeForSlow)
                                     
                                     while (count < range) {
                                         val candidate = generator.toString()
@@ -339,19 +369,21 @@ class BruteForceService {
                                         if (batch.size >= batchSizeForSlow || localCounterBig >= localCounterResetIntervalBig) {
                                             if (shouldStop.get()) break
                                             
-                                            // Параллельная проверка батча
+                                            // Параллельная проверка батча с оптимизацией
                                             val results = asyncChecker.checkBatchWithLimit(batch)
                                             
-                                            // Проверяем результаты
+                                            // Проверяем результаты (оптимизация: прерываем при первом совпадении)
+                                            var found = false
                                             for ((cand, isMatch) in results) {
                                                 if (isMatch) {
                                                     resultChannel.send(BruteForceResult.Found(cand))
                                                     shouldStop.set(true)
+                                                    found = true
                                                     break
                                                 }
                                             }
                                             
-                                            if (shouldStop.get()) break
+                                            if (found || shouldStop.get()) break
                                             
                                             // Отправляем статистику прогресса
                                             progressChannel.trySend(
@@ -430,6 +462,9 @@ class BruteForceService {
         // Ждем завершения обработки результатов и прогресса
         val result = resultProcessor.await()
         progressProcessor.cancel() // Отменяем обработку прогресса, если еще не завершена
+        
+        // Очищаем ресурсы асинхронного checker
+        asyncChecker?.cleanup()
         
         result ?: foundPassword.get()
     }
