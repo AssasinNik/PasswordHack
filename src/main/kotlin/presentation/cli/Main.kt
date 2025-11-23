@@ -8,6 +8,81 @@ import ru.cherenkov.domain.service.AlphabetService
 import ru.cherenkov.domain.service.BruteForceService
 import ru.cherenkov.domain.service.HashDetectionService
 
+/**
+ * Рассчитывает оптимальное количество корутин для брутфорса
+ * на основе типа алгоритма и количества CPU ядер
+ */
+object CoroutineOptimizer {
+    /**
+     * Определяет оптимальное количество корутин для алгоритма
+     * @param algorithm Тип алгоритма хэширования
+     * @param requestedCount Запрошенное пользователем количество (null = авто)
+     * @return Оптимальное количество корутин
+     */
+    fun calculateOptimalCoroutines(algorithm: HashAlgorithm, requestedCount: Int?): Int {
+        val cpuCores = Runtime.getRuntime().availableProcessors()
+        val isFastAlgorithm = algorithm == HashAlgorithm.MD5 || algorithm == HashAlgorithm.SHA1
+        
+        // Если пользователь явно указал количество, используем его
+        if (requestedCount != null) {
+            val maxRecommended = if (isFastAlgorithm) {
+                cpuCores * 16 // Для быстрых алгоритмов максимум ядра * 16
+            } else {
+                cpuCores * 4  // Для медленных алгоритмов максимум ядра * 4
+            }
+            
+            // Если запрошено больше оптимального, предупреждаем
+            if (requestedCount > maxRecommended) {
+                println("⚠️  Note: Requested $requestedCount coroutines may be excessive.")
+                println("   Recommended maximum: $maxRecommended for ${algorithm.name}")
+                println("   Using requested value anyway...")
+            }
+            return requestedCount
+        }
+        
+        // Автоматический расчет оптимального количества
+        return when {
+            isFastAlgorithm -> {
+                // Для быстрых алгоритмов (MD5, SHA-1) используем больше корутин
+                // Каждая проверка быстрая, поэтому можем обрабатывать больше параллельно
+                // Формула: ядра * 12-16 для максимальной производительности
+                (cpuCores * 12).coerceAtMost(256).coerceAtLeast(16)
+            }
+            algorithm == HashAlgorithm.BCRYPT -> {
+                // Для bcrypt используем меньше корутин, так как каждая проверка медленная
+                // Формула: ядра * 2-3
+                (cpuCores * 3).coerceAtMost(64).coerceAtLeast(8)
+            }
+            algorithm == HashAlgorithm.ARGON2 -> {
+                // Для Argon2 используем еще меньше, так как он самый медленный
+                // Формула: ядра * 2-2.5
+                (cpuCores * 2).coerceAtMost(32).coerceAtLeast(4)
+            }
+            else -> {
+                // По умолчанию
+                cpuCores * 4
+            }
+        }
+    }
+    
+    /**
+     * Получает информацию о рекомендуемом количестве корутин
+     */
+    fun getRecommendationInfo(algorithm: HashAlgorithm): String {
+        val cpuCores = Runtime.getRuntime().availableProcessors()
+        val isFastAlgorithm = algorithm == HashAlgorithm.MD5 || algorithm == HashAlgorithm.SHA1
+        
+        val optimal = calculateOptimalCoroutines(algorithm, null)
+        val maxRecommended = if (isFastAlgorithm) {
+            cpuCores * 16
+        } else {
+            cpuCores * 4
+        }
+        
+        return "Optimal: $optimal coroutines (max recommended: $maxRecommended for ${algorithm.name})"
+    }
+}
+
 fun main(args: Array<String>) = runBlocking {
     val parsedArgs = ArgumentParser.parseArguments(args)
     
@@ -35,15 +110,23 @@ fun main(args: Array<String>) = runBlocking {
         return@runBlocking
     }
 
-    val threadCount = parsedArgs["threads"]?.toIntOrNull() ?: Runtime.getRuntime().availableProcessors()
+    val requestedThreads = parsedArgs["threads"]?.toIntOrNull()
+    val threadCount = CoroutineOptimizer.calculateOptimalCoroutines(algorithm, requestedThreads)
     val maxLength = parsedArgs["maxLength"]?.toIntOrNull() ?: 8
     val minLength = parsedArgs["minLength"]?.toIntOrNull() ?: 1
     val useGPU = parsedArgs.containsKey("gpu")
     
     val startTime = System.currentTimeMillis()
 
+    val cpuCores = Runtime.getRuntime().availableProcessors()
     println("Detected algorithm: $algorithm")
-    println("Using $threadCount threads")
+    if (requestedThreads == null) {
+        println("🚀 Auto-optimized coroutines: $threadCount (CPU cores: $cpuCores)")
+        println("   ${CoroutineOptimizer.getRecommendationInfo(algorithm)}")
+        println("   💡 Tip: Use -threads=N to override (max recommended: ${if (algorithm == HashAlgorithm.MD5 || algorithm == HashAlgorithm.SHA1) cpuCores * 16 else cpuCores * 4})")
+    } else {
+        println("Using $threadCount coroutines (requested: $requestedThreads)")
+    }
     if (useGPU) {
         if (GPUAccelerator.isAvailable() && (algorithm == HashAlgorithm.MD5 || algorithm == HashAlgorithm.SHA1)) {
             println("GPU acceleration: Available and will be used")
